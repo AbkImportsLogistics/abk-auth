@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "abk-auth"
+dynamic = ["version"]
+description = "Librería centralizada de autenticación Cognito para ABK"
+authors = [
+    { name="ABK", email="tu_correo@abk.pe" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.109.0",
+    "python-jose[cryptography]>=3.3.0",
+    "httpx>=0.26.0",
+    "pydantic[email]>=2.6.0"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.setuptools.dynamic]
+version = { file = "version.txt" }
+
+[tool.setuptools.packages.find]
+include = ["abk_auth"]

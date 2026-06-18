@@ -67,8 +67,6 @@ class CognitoTokenValidator:
                 signing_key,
                 algorithms=["RS256"],
                 issuer=self.issuer,
-                # El accessToken NO trae 'aud'; validamos la audiencia a mano
-                # según el tipo de token (aud para id, client_id para access).
                 options={"verify_aud": False, "verify_at_hash": False},
             )
         except ExpiredSignatureError:
@@ -96,7 +94,6 @@ class CognitoTokenValidator:
 
     @staticmethod
     def _build_user(claims: dict[str, Any]) -> User:
-        # El accessToken no trae email/name; sí trae cognito:groups y username/sub.
         email = claims.get("email")
         if email:
             email = email.lower()
@@ -114,4 +111,6 @@ class CognitoTokenValidator:
             if not g.endswith("_google") and "us-east-1" not in g
         ]
 
-        return User(email=email, nombre=nombre, roles=grupos_reales)
+        return User(
+            email=email, nombre=nombre, roles=grupos_reales, sub=claims.get("sub")
+        )

@@ -5,6 +5,7 @@ class User(BaseModel):
     email: EmailStr | None = None
     nombre: str
     roles: list[str] = []
+    sub: str | None = None
 
     def is_admin(self) -> bool:
         return "administrador" in self.roles

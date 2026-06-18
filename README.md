@@ -73,7 +73,7 @@ from abk_auth import User
 app = FastAPI()
 
 # Endpoint que requiere un rol específico (usuario Cognito)
-@app.get("/reportes", dependencies=[Depends(auth.require_roles(["finanzas", "admin"]))])
+@app.get("/reportes", dependencies=[Depends(auth.require_roles(["finanzas", "administrador"]))])
 async def reportes():
     return {"ok": True}
 
@@ -112,11 +112,11 @@ Fachada de seguridad. Las dependencias que expone:
 
 ```python
 class User(BaseModel):
-    email: EmailStr
+    email: EmailStr | None = None  # ausente en access tokens
     nombre: str
-    roles: list[str]
+    roles: list[str] = []
 
-    def is_admin(self) -> bool: ...
+    def is_admin(self) -> bool: ...  # True si tiene el rol "administrador"
     def has_any_role(self, allowed_roles: list[str]) -> bool: ...
 ```
 

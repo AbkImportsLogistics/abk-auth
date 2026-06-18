@@ -12,6 +12,18 @@ async def test_token_valido_devuelve_usuario(auth, make_token):
     assert user.roles == ["administrador", "finanzas"]
 
 
+async def test_token_expone_el_sub(auth, make_token):
+    # El sub (id inmutable de Cognito) se expone para enlazar con la DB de negocio.
+    user = await auth.validator.verify_token(make_token())
+    assert user.sub == "abc-123"
+
+    # También en access token (no trae email, pero sí sub).
+    access = await auth.validator.verify_token(
+        make_token(token_use="access", email=None, name=None, client_id="test-client-id")
+    )
+    assert access.sub == "abc-123"
+
+
 async def test_grupos_internos_de_cognito_se_filtran(auth, make_token):
     token = make_token(groups=["Administrador", "us-east-1_abc", "google_users_google"])
     user = await auth.validator.verify_token(token)

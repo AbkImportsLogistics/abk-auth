@@ -115,13 +115,18 @@ class User(BaseModel):
     email: EmailStr | None = None  # ausente en access tokens
     nombre: str
     roles: list[str] = []
+    sub: str | None = None         # id inmutable de Cognito; None en M2M
 
     def is_admin(self) -> bool: ...  # True si tiene el rol "administrador"
     def has_any_role(self, allowed_roles: list[str]) -> bool: ...
 ```
 
-Para integraciones M2M, `email` es `sistema@abk.pe`, `nombre` es `Integración M2M`
-y `roles` está vacío.
+El `sub` es el identificador único e inmutable que Cognito asigna a cada usuario;
+úsalo como clave para enlazar la identidad con los datos de negocio en la DB de tu
+servicio (presente en id y access tokens).
+
+Para integraciones M2M, `email` es `sistema@abk.pe`, `nombre` es `Integración M2M`,
+`roles` está vacío y `sub` es `None`.
 
 ---
 

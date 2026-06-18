@@ -4,16 +4,18 @@ from fastapi import HTTPException
 
 
 async def test_token_valido_devuelve_usuario(auth, make_token):
-    user = await auth.validator.verify_token(make_token(groups=["admin", "finanzas"]))
+    user = await auth.validator.verify_token(
+        make_token(groups=["administrador", "finanzas"])
+    )
     assert user.email == "user@abk.pe"  # normalizado a minúsculas
     assert user.nombre == "Usuario Prueba"
-    assert user.roles == ["admin", "finanzas"]
+    assert user.roles == ["administrador", "finanzas"]
 
 
 async def test_grupos_internos_de_cognito_se_filtran(auth, make_token):
-    token = make_token(groups=["Admin", "us-east-1_abc", "google_users_google"])
+    token = make_token(groups=["Administrador", "us-east-1_abc", "google_users_google"])
     user = await auth.validator.verify_token(token)
-    assert user.roles == ["admin"]
+    assert user.roles == ["administrador"]
 
 
 async def test_nombre_por_defecto_es_el_usuario_del_email(auth, make_token):
@@ -41,18 +43,43 @@ async def test_issuer_incorrecto(auth, make_token):
     assert exc.value.status_code == 401
 
 
-async def test_access_token_es_rechazado(auth, make_token):
-    with pytest.raises(HTTPException) as exc:
-        await auth.validator.verify_token(make_token(token_use="access"))
-    assert exc.value.status_code == 401
-    assert "id token" in exc.value.detail.lower()
+async def test_access_token_valido_es_aceptado(auth, make_token):
+    # El access token no trae email/name ni aud; se valida vía client_id.
+    token = make_token(
+        token_use="access",
+        email=None,
+        name=None,
+        groups=["administrador", "finanzas"],
+        client_id="test-client-id",  # == APP_CLIENT_ID del conftest
+        extra={"username": "user@abk.pe"},
+    )
+    user = await auth.validator.verify_token(token)
+    assert user.email is None
+    assert user.nombre == "user@abk.pe"  # cae al username
+    assert user.roles == ["administrador", "finanzas"]
+    assert user.is_admin()
 
 
-async def test_token_sin_email_ni_username(auth, make_token):
+async def test_access_token_con_client_id_incorrecto_es_rechazado(auth, make_token):
     with pytest.raises(HTTPException) as exc:
-        await auth.validator.verify_token(make_token(email=None))
+        await auth.validator.verify_token(
+            make_token(token_use="access", client_id="otro-client")
+        )
     assert exc.value.status_code == 401
-    assert "email" in exc.value.detail.lower()
+    assert "client_id" in exc.value.detail.lower()
+
+
+async def test_token_con_token_use_no_soportado_es_rechazado(auth, make_token):
+    with pytest.raises(HTTPException) as exc:
+        await auth.validator.verify_token(make_token(token_use="refresh"))
+    assert exc.value.status_code == 401
+
+
+async def test_token_sin_email_arma_usuario_con_username_o_sub(auth, make_token):
+    # Email opcional (caso access token): el usuario se arma con username/sub.
+    user = await auth.validator.verify_token(make_token(email=None, name=None))
+    assert user.email is None
+    assert user.nombre == "abc-123"  # sub, al no haber email ni username
 
 
 async def test_token_malformado(auth):

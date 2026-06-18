@@ -44,6 +44,7 @@ def make_token(rsa_keys):
         groups=None,
         token_use="id",
         audience=APP_CLIENT_ID,
+        client_id=None,
         issuer=ISSUER,
         expired=False,
         kid=KID,
@@ -64,6 +65,8 @@ def make_token(rsa_keys):
             claims["name"] = name
         if groups is not None:
             claims["cognito:groups"] = groups
+        if client_id is not None:
+            claims["client_id"] = client_id
         if extra:
             claims.update(extra)
         return jwt.encode(

@@ -12,7 +12,7 @@ def client(auth):
     async def me(user=Depends(auth.get_current_user)):
         return {"email": user.email, "roles": user.roles}
 
-    @app.get("/admin", dependencies=[Depends(auth.require_roles(["admin"]))])
+    @app.get("/admin", dependencies=[Depends(auth.require_roles(["administrador"]))])
     async def admin():
         return {"ok": True}
 
@@ -49,7 +49,7 @@ def test_api_key_no_sirve_para_endpoint_de_usuario(client):
 
 
 def test_usuario_con_rol_accede(client, make_token):
-    token = make_token(groups=["admin"])
+    token = make_token(groups=["administrador"])
     r = client.get("/admin", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
 

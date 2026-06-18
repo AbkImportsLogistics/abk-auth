@@ -9,7 +9,7 @@ from abk_auth.models import User
 
 
 class CognitoTokenValidator:
-    """Valida id tokens emitidos por un User Pool de AWS Cognito."""
+    """Valida id/access tokens emitidos por un User Pool de AWS Cognito."""
 
     def __init__(self, region: str, user_pool_id: str, app_client_id: str):
         self.app_client_id = app_client_id
@@ -66,33 +66,46 @@ class CognitoTokenValidator:
                 token,
                 signing_key,
                 algorithms=["RS256"],
-                audience=self.app_client_id,
                 issuer=self.issuer,
-                options={"verify_at_hash": False},
+                # El accessToken NO trae 'aud'; validamos la audiencia a mano
+                # según el tipo de token (aud para id, client_id para access).
+                options={"verify_aud": False, "verify_at_hash": False},
             )
         except ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Token expirado") from None
         except JWTError:
             raise HTTPException(status_code=401, detail="Token inválido") from None
 
-        if claims.get("token_use") != "id":
-            raise HTTPException(
-                status_code=401,
-                detail="Tipo de token inválido: se requiere un id token",
-            )
+        token_use = claims.get("token_use")
+        if token_use == "access":
+            if claims.get("client_id") != self.app_client_id:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Token inválido: client_id no coincide",
+                )
+        elif token_use == "id":
+            if claims.get("aud") != self.app_client_id:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Token inválido: aud no coincide",
+                )
+        else:
+            raise HTTPException(status_code=401, detail="Tipo de token no soportado")
 
         return self._build_user(claims)
 
     @staticmethod
     def _build_user(claims: dict[str, Any]) -> User:
-        email = claims.get("email") or claims.get("username")
-        if not email:
-            raise HTTPException(
-                status_code=401,
-                detail="El token no contiene email ni username",
-            )
-        email = email.lower()
-        nombre = claims.get("name") or email.split("@")[0]
+        # El accessToken no trae email/name; sí trae cognito:groups y username/sub.
+        email = claims.get("email")
+        if email:
+            email = email.lower()
+        username = (
+            claims.get("username")
+            or claims.get("cognito:username")
+            or claims.get("sub", "")
+        )
+        nombre = claims.get("name") or (email.split("@")[0] if email else username)
 
         grupos_cognito = claims.get("cognito:groups", [])
         grupos_reales = [
